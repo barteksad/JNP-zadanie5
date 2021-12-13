@@ -5,7 +5,9 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-// #include <iostream>
+
+// USUNĄĆ PRZED ODDANIEM
+#include <iostream>
 
 class VirusNotFound : public std::exception
 {
@@ -42,6 +44,8 @@ public:
     struct children_iterator;
 
     VirusGenealogy(id_type const &_stem_id);
+    VirusGenealogy(const VirusGenealogy& other)=delete;
+    VirusGenealogy & operator=(const VirusGenealogy& other)=delete;
     id_type get_stem_id() const;
     children_iterator get_children_begin(id_type const &id) const;
     children_iterator get_children_end(id_type const &id) const;
@@ -52,6 +56,24 @@ public:
     void create(id_type const &id, std::vector<id_type> const &parent_ids);
     void connect(id_type const &child_id, id_type const &parent_id);
     void remove(id_type const &id);
+
+
+    // !!! USUNAĆ PRZED ODDANIEM, DO DEBUGOWANIA
+    [[maybe_unused]]
+    void print() {
+
+        for(auto i : nodes) {
+            std::cout << i.first << " [parents] : ";
+            for(auto j : i.second->get_parents())
+                std::cout << j.first << ", ";
+            std::cout <<  "\n  [children] : ";
+            for(auto j : i.second->get_children())
+                std::cout << j.first << ", ";
+            std::cout << "\n --- \n";
+        }
+
+    }
+
 };
 
 template <typename Virus>
@@ -93,6 +115,7 @@ public:
     {
         return virus.get_id();
     }
+
 };
 
 template <typename Virus>
@@ -117,7 +140,7 @@ public:
         if (!present)
         {
             rollback_at_construct_time = false;
-            throw new VirusAlreadyCreated();
+            throw VirusAlreadyCreated();
         }
 
         rollback = true;
@@ -140,7 +163,7 @@ VirusGenealogy<Virus>::virus_map_shared::iterator VirusGenealogy<Virus>::find_no
 {
     typename virus_map_shared::iterator it = nodes.find(id);
     if (it == nodes.end())
-        throw new VirusNotFound();
+        throw VirusNotFound();
     else
         return it;
 }
@@ -176,10 +199,17 @@ void VirusGenealogy<Virus>::create(id_type const &id, std::vector<id_type> const
     }
 
     nodes.insert({id, new_node});
-    // insertGuards.push_back(std::make_unique<InsertVirusGuard>(nodes, new_node));
 
     for(auto& guard : insertGuards)
         guard->dropRollback();
 }
+
+template <typename Virus>
+void VirusGenealogy<Virus>::create(id_type const &id, id_type const &parent_id) {
+    std::vector<id_type> tmp({parent_id});
+
+    create(id, tmp);
+}
+
 
 #endif
