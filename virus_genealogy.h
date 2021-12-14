@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include <queue>
 
 // USUNĄĆ PRZED ODDANIEM
 #include <iostream>
@@ -105,7 +106,7 @@ public:
         return children;
     }
 
-    Virus &get_virus()
+    Virus &get_virus() noexcept
     {
         return virus;
     }
@@ -154,22 +155,32 @@ public:
     }
 };
 
-// template <typename Virus>
-// class VirusGenealogy<Virus>::RemoveVirusGuard
-// {
-// private:
-//     bool rollback;
-//     bool rollback_at_construct_time;
-//     virus_map_weak &erase_place;
-//     virus_map_weak::iterator it;
+template <typename Virus>
+class VirusGenealogy<Virus>::RemoveVirusGuard
+{
+private:
+    bool rollback;
+    virus_map_weak &erase_place;
+    virus_map_weak::iterator it;
 
-// public
-//     RemoveVirusGuard(virus_map_weak &_erase_place, std::weak_ptr<VirusNode> virus_node)
-//         : rollback(false), erase_place(_erase_place)
-//     {
-//         rollback_at_construct_time = true;
-//     }
-// };
+public:
+    RemoveVirusGuard(virus_map_weak &_erase_place, const id_type id)
+        : rollback(true), erase_place(_erase_place)
+    {
+        it = _erase_place.find(id);
+    }
+
+    ~RemoveVirusGuard() noexcept
+    {
+        if (!rollback)
+            erase_place.erase(it);
+    }
+
+    void dropRollback() noexcept
+    {
+        rollback = false;
+    }
+};
 
 template <typename Virus>
 VirusGenealogy<Virus>::virus_map_shared::iterator VirusGenealogy<Virus>::find_node(id_type const &id)
@@ -195,7 +206,6 @@ VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const
     return stem_id;
 }
 
-// VirusAlreadyCreated VirusNotFound
 template <typename Virus>
 void VirusGenealogy<Virus>::create(id_type const &id, std::vector<id_type> const &parent_ids)
 {
@@ -225,18 +235,46 @@ void VirusGenealogy<Virus>::create(id_type const &id, id_type const &parent_id)
     create(id, tmp);
 }
 
-// template <typename Virus>
-// void VirusGenealogy<Virus>::remove(id_type const &id)
-// {
-//     if (stem_id == id)
-//         throw TriedToRemoveStemVirus();
+template <typename Virus>
+void VirusGenealogy<Virus>::remove(id_type const &id)
+{
+    if (stem_id == id)
+        throw TriedToRemoveStemVirus();
 
-//     auto it = nodes.find(id);
+    auto remove_virus_it = nodes.find(id);
+    if (remove_virus_it == nodes.end())
+        throw VirusNotFound();
 
-//     if (it == nodes.end())
-//         throw VirusNotFound();
+    std::vector<decltype(nodes.begin())> to_erase({remove_virus_it});
+    std::vector<std::unique_ptr<RemoveVirusGuard>> removeGuards;
 
-//     vector<id_type> to_erase({id});
-// }
+    for(auto& [parent_id, parent] : remove_virus_it->second->get_parents())
+        removeGuards.push_back(std::make_unique<RemoveVirusGuard>(parent.lock()->get_children(), id));
+
+    // <parent_id, child_pointer>
+    std::queue<std::pair<id_type, std::shared_ptr<VirusNode>>> bfs;
+    for(auto& [child_id, child] : remove_virus_it->second->get_children())
+        bfs.push({id, child.lock()});
+
+    while(!bfs.empty()) {
+        auto& [parent_id, current] = bfs.front();
+        bfs.pop();
+
+        if (current->get_parents().size() == 1) {
+            to_erase.push_back(nodes.find(current->get_id()));
+
+            for(auto& [child_id, child] : current->get_children())
+                bfs.push({current->get_id(), child.lock()});
+        }
+        else
+            removeGuards.push_back(std::make_unique<RemoveVirusGuard>(current->get_parents(), parent_id));
+    }
+
+    for(auto& g : removeGuards)
+        g->dropRollback();
+
+    for(auto& it : to_erase)
+        nodes.erase(it);
+}
 
 #endif

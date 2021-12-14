@@ -51,10 +51,13 @@ int main()
 		;
 	}
 
-	// g.remove(5);
-	// g.remove(10);
-	// g.remove(100);
-
+	try {
+		g.remove(5);
+		g.remove(10);
+		g.remove(100);
+	} catch (...) {
+		;
+	}
 	g.print();
 
 	cout << "end\n";
