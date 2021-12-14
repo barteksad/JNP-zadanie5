@@ -30,6 +30,7 @@ class VirusGenealogy
 private:
     class VirusNode;
     class InsertVirusGuard;
+    class RemoveVirusGuard;
 
     using id_type = typename Virus::id_type;
     using virus_map_shared = std::unordered_map<id_type, std::shared_ptr<VirusNode>>;
@@ -44,8 +45,8 @@ public:
     struct children_iterator;
 
     VirusGenealogy(id_type const &_stem_id);
-    VirusGenealogy(const VirusGenealogy& other)=delete;
-    VirusGenealogy & operator=(const VirusGenealogy& other)=delete;
+    VirusGenealogy(const VirusGenealogy &other) = delete;
+    VirusGenealogy &operator=(const VirusGenealogy &other) = delete;
     id_type get_stem_id() const;
     children_iterator get_children_begin(id_type const &id) const;
     children_iterator get_children_end(id_type const &id) const;
@@ -57,23 +58,21 @@ public:
     void connect(id_type const &child_id, id_type const &parent_id);
     void remove(id_type const &id);
 
-
     // !!! USUNAĆ PRZED ODDANIEM, DO DEBUGOWANIA
-    [[maybe_unused]]
-    void print() {
+    [[maybe_unused]] void print()
+    {
 
-        for(auto i : nodes) {
+        for (auto i : nodes)
+        {
             std::cout << i.first << " [parents] : ";
-            for(auto j : i.second->get_parents())
+            for (auto j : i.second->get_parents())
                 std::cout << j.first << ", ";
-            std::cout <<  "\n  [children] : ";
-            for(auto j : i.second->get_children())
+            std::cout << "\n  [children] : ";
+            for (auto j : i.second->get_children())
                 std::cout << j.first << ", ";
             std::cout << "\n --- \n";
         }
-
     }
-
 };
 
 template <typename Virus>
@@ -115,7 +114,6 @@ public:
     {
         return virus.get_id();
     }
-
 };
 
 template <typename Virus>
@@ -124,19 +122,17 @@ class VirusGenealogy<Virus>::InsertVirusGuard
 private:
     bool rollback;
     bool rollback_at_construct_time;
-    virus_map_weak& inser_place;
+    virus_map_weak &inser_place;
     virus_map_weak::iterator it;
 
 public:
-    InsertVirusGuard(virus_map_weak &_inser_place, std::shared_ptr<VirusNode> virus_node)
+    InsertVirusGuard(virus_map_weak &_inser_place, std::weak_ptr<VirusNode> virus_node)
         : rollback(false), inser_place(_inser_place)
     {
         rollback_at_construct_time = true;
         bool present;
 
-        std::weak_ptr node = virus_node;
-
-        std::tie(it, present) = inser_place.insert({virus_node->get_id(), node});
+        std::tie(it, present) = inser_place.insert({virus_node.lock()->get_id(), virus_node});
         if (!present)
         {
             rollback_at_construct_time = false;
@@ -157,6 +153,23 @@ public:
         rollback = false;
     }
 };
+
+// template <typename Virus>
+// class VirusGenealogy<Virus>::RemoveVirusGuard
+// {
+// private:
+//     bool rollback;
+//     bool rollback_at_construct_time;
+//     virus_map_weak &erase_place;
+//     virus_map_weak::iterator it;
+
+// public
+//     RemoveVirusGuard(virus_map_weak &_erase_place, std::weak_ptr<VirusNode> virus_node)
+//         : rollback(false), erase_place(_erase_place)
+//     {
+//         rollback_at_construct_time = true;
+//     }
+// };
 
 template <typename Virus>
 VirusGenealogy<Virus>::virus_map_shared::iterator VirusGenealogy<Virus>::find_node(id_type const &id)
@@ -200,16 +213,30 @@ void VirusGenealogy<Virus>::create(id_type const &id, std::vector<id_type> const
 
     nodes.insert({id, new_node});
 
-    for(auto& guard : insertGuards)
+    for (auto &guard : insertGuards)
         guard->dropRollback();
 }
 
 template <typename Virus>
-void VirusGenealogy<Virus>::create(id_type const &id, id_type const &parent_id) {
+void VirusGenealogy<Virus>::create(id_type const &id, id_type const &parent_id)
+{
     std::vector<id_type> tmp({parent_id});
 
     create(id, tmp);
 }
 
+// template <typename Virus>
+// void VirusGenealogy<Virus>::remove(id_type const &id)
+// {
+//     if (stem_id == id)
+//         throw TriedToRemoveStemVirus();
+
+//     auto it = nodes.find(id);
+
+//     if (it == nodes.end())
+//         throw VirusNotFound();
+
+//     vector<id_type> to_erase({id});
+// }
 
 #endif

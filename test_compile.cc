@@ -34,7 +34,7 @@ int main()
 		vector<int> e({0, 1, 2, 3, 4});
 		vector<int> f({0, 1, 2, 3, 4, 5});
 		vector<int> h({0, 1, 2, 3, 4, 5, 6});
-		vector<int> i({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+		vector<int> i({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 		g.create(1, a);
 		g.create(2, b);
 		g.create(3, c);
@@ -45,9 +45,15 @@ int main()
 		g.create(8, 1);
 		g.create(9, 8);
 		g.create(10, i);
+		g.create(100, 0);
+		g.create(101, 100);
 	} catch (...) {
 		;
 	}
+
+	// g.remove(5);
+	// g.remove(10);
+	// g.remove(100);
 
 	g.print();
 
