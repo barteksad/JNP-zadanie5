@@ -35,6 +35,7 @@ int main()
 		vector<int> f({0, 1, 2, 3, 4, 5});
 		vector<int> h({0, 1, 2, 3, 4, 5, 6});
 		vector<int> i({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+		vector<int> j({500, 501, 502, 504, 505});
 		g.create(1, a);
 		g.create(2, b);
 		g.create(3, c);
@@ -47,14 +48,21 @@ int main()
 		g.create(10, i);
 		g.create(100, 0);
 		g.create(101, 100);
+		g.create(500, 10);
+		g.create(501, 500);
+		g.create(502, 501);
+		g.create(503, 502);
+		g.create(504, 503);
+		g.create(505, 504);
+		g.create(506, j);
 	} catch (...) {
 		;
 	}
 
 	try {
-		g.remove(5);
+		// g.remove(5);
 		g.remove(10);
-		g.remove(100);
+		// g.remove(100);
 	} catch (...) {
 		;
 	}

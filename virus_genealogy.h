@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include <queue>
+#include <set>
 
 // USUNĄĆ PRZED ODDANIEM
 #include <iostream>
@@ -246,10 +247,11 @@ void VirusGenealogy<Virus>::remove(id_type const &id)
         throw VirusNotFound();
 
     std::vector<decltype(nodes.begin())> to_erase({remove_virus_it});
-    std::vector<std::unique_ptr<RemoveVirusGuard>> removeGuards;
+    std::set<id_type> to_erase_ids({id});
+    std::queue<std::unique_ptr<RemoveVirusGuard>> removeGuards;
 
     for(auto& [parent_id, parent] : remove_virus_it->second->get_parents())
-        removeGuards.push_back(std::make_unique<RemoveVirusGuard>(parent.lock()->get_children(), id));
+        removeGuards.push(std::make_unique<RemoveVirusGuard>(parent.lock()->get_children(), id));
 
     // <parent_id, child_pointer>
     std::queue<std::pair<id_type, std::shared_ptr<VirusNode>>> bfs;
@@ -260,18 +262,27 @@ void VirusGenealogy<Virus>::remove(id_type const &id)
         auto& [parent_id, current] = bfs.front();
         bfs.pop();
 
-        if (current->get_parents().size() == 1) {
+        bool all_parents_to_delete =  std::all_of(
+            current->get_parents().begin(),
+            current->get_parents().end(),
+            [&](auto it) {return to_erase_ids.find(it.second.lock()->get_id()) != to_erase_ids.end();}
+            );
+
+        if (all_parents_to_delete) {
             to_erase.push_back(nodes.find(current->get_id()));
+            to_erase_ids.insert(current->get_id());
 
             for(auto& [child_id, child] : current->get_children())
                 bfs.push({current->get_id(), child.lock()});
         }
         else
-            removeGuards.push_back(std::make_unique<RemoveVirusGuard>(current->get_parents(), parent_id));
+            removeGuards.push(std::make_unique<RemoveVirusGuard>(current->get_parents(), parent_id));
     }
 
-    for(auto& g : removeGuards)
-        g->dropRollback();
+    while(!removeGuards.empty()) {
+        removeGuards.front()->dropRollback();
+        removeGuards.pop();
+    }
 
     for(auto& it : to_erase)
         nodes.erase(it);
