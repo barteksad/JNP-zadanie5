@@ -61,12 +61,37 @@ int main()
 
 	try {
 		// g.remove(5);
-		g.remove(10);
+		// g.remove(10);
 		// g.remove(100);
 	} catch (...) {
 		;
 	}
+	g.connect(506, 0);
 	g.print();
 
-	cout << "end\n";
+	for(auto i : g.get_parents(7))
+		cout << i <<" ";
+
+	cout << "\n ------------------------- \n\n";
+
+
+	try {
+		g.remove(5);
+		g.remove(10);
+		g.remove(100);
+	} catch (...) {
+		;
+	}
+
+	g.print();
+
+	cout << "\n\n";
+	cout <<(*g.get_children_begin(0)).get_id() << " ";
+
+	auto it = g.get_children_begin(0);
+	it++;
+	it++;
+	it--;
+	cout <<(*it).get_id();
+
 }
