@@ -204,8 +204,8 @@ template <typename Virus>
 const Virus &VirusGenealogy<Virus>::operator[](id_type const &id) const
 {
 
-    typename virus_map_shared::iterator it = find_node(id);
-    return it->second.get_virus();
+    typename virus_map_shared::const_iterator it = find_node(id);
+    return it->second->get_virus();
 }
 
 template <typename Virus>
@@ -344,19 +344,21 @@ class VirusGenealogy<Virus>::children_iterator
 {
 public:
     using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = Virus;
+    using value_type = const Virus;
     using difference_type = VirusGenealogy<Virus>::virus_map_weak::difference_type;
     using pointer = VirusGenealogy<Virus>::virus_map_weak::iterator;
     using reference = const Virus &;
 
     children_iterator(pointer p) : ptr(p) {}
 
-    reference operator*()
+    children_iterator() = default;
+
+    reference operator*() const
     {
         return ptr->second.lock()->get_virus();
     }
-    pointer operator->()
-    {
+    pointer operator->() const
+    { 
         return ptr;
     }
     children_iterator &operator++()
@@ -406,7 +408,9 @@ VirusGenealogy<Virus>::children_iterator VirusGenealogy<Virus>::get_children_beg
 
 template <typename Virus>
 VirusGenealogy<Virus>::children_iterator VirusGenealogy<Virus>::get_children_end(id_type const &id) const {
+    auto it = find_node(id);
 
+    return children_iterator(it->second->get_children().end());
 }
 
 #endif

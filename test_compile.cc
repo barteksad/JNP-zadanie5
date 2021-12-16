@@ -1,6 +1,9 @@
 #include "virus_genealogy.h"
 #include <vector>
 #include <iostream>
+#include <map>
+#include <iterator>
+#include <cassert>
 using namespace std;
 
 class Virus
@@ -93,5 +96,14 @@ int main()
 	it++;
 	it--;
 	cout <<(*it).get_id();
+	cout<<"\n\n -- \n\n";
 
+	for(auto i =g.get_children_begin(0); i != g.get_children_end(0);i++ )
+		cout << (*i).get_id()<<" ";
+	cout << " | ";
+	for(auto i =--g.get_children_end(0); i != g.get_children_begin(0);i-- )
+		cout << (*i).get_id()<<" ";
+	
+
+	assert(typeid(*g.get_children_begin(0)) == typeid(const Virus &));
 }
