@@ -11,19 +11,25 @@
 // USUNĄĆ PRZED ODDANIEM
 #include <iostream>
 
-class VirusNotFound : public std::exception
+class VirusNotFound : public std::runtime_error
 {
-    // TODO : dziedziczenie po odpowiednim wyjątku
+public:
+    VirusNotFound()
+        : runtime_error("No Virus with such ID found!") {}
 };
 
-class VirusAlreadyCreated : public std::exception
+class VirusAlreadyCreated : public std::runtime_error
 {
-    // TODO : dziedziczenie po odpowiednim wyjątku
+public:
+    VirusAlreadyCreated()
+        : runtime_error("Virus with such ID already exists") {}
 };
 
-class TriedToRemoveStemVirus : public std::exception
+class TriedToRemoveStemVirus : public std::invalid_argument
 {
-    // TODO : dziedziczenie po odpowiednim wyjątku
+public:
+    TriedToRemoveStemVirus()
+        : invalid_argument("You cannot remove stem Virus") {}
 };
 
 template <typename Virus>
@@ -50,7 +56,7 @@ public:
     VirusGenealogy(id_type const &_stem_id);
     VirusGenealogy(const VirusGenealogy &other) = delete;
     VirusGenealogy &operator=(const VirusGenealogy &other) = delete;
-    id_type get_stem_id() const;
+    id_type get_stem_id() const noexcept;
     children_iterator get_children_begin(id_type const &id) const;
     children_iterator get_children_end(id_type const &id) const;
     std::vector<id_type> get_parents(id_type const &id) const;
@@ -61,10 +67,8 @@ public:
     void connect(id_type const &child_id, id_type const &parent_id);
     void remove(id_type const &id);
 
-    // !!! USUNAĆ PRZED ODDANIEM, DO DEBUGOWANIA
     [[maybe_unused]] void print()
     {
-
         for (auto i : nodes)
         {
             std::cout << i.first << " [parents] : ";
@@ -125,7 +129,7 @@ private:
     virus_map_weak::iterator it;
 
 public:
-    InsertVirusGuard(virus_map_weak &_inser_place, std::weak_ptr<VirusNode> virus_node, bool must_be_new = true)
+    InsertVirusGuard(virus_map_weak &_inser_place, std::weak_ptr<VirusNode> virus_node, [[maybe_unused]] bool must_be_new = true)
         : rollback(false), inser_place(_inser_place)
     {
         rollback_at_construct_time = true;
@@ -209,7 +213,7 @@ const Virus &VirusGenealogy<Virus>::operator[](id_type const &id) const
 }
 
 template <typename Virus>
-VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const
+VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const noexcept
 {
     return stem_id;
 }
@@ -217,16 +221,20 @@ VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const
 template <typename Virus>
 bool VirusGenealogy<Virus>::exists(id_type const &id) const noexcept
 {
+    bool found;
     try
     {
-        find_node(id);
+        found = find_node(id) != nodes.end() ? true : false;
     }
     catch (...)
     {
         return false;
     }
 
-    return true;
+    if (found)
+        return true;
+    else
+        return false;
 }
 
 template <typename Virus>
