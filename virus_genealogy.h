@@ -129,18 +129,20 @@ private:
     virus_map_weak::iterator it;
 
 public:
-    InsertVirusGuard(virus_map_weak &_inser_place, std::weak_ptr<VirusNode> virus_node, [[maybe_unused]] bool must_be_new = true)
+    InsertVirusGuard(virus_map_weak &_inser_place, std::weak_ptr<VirusNode> virus_node, [[maybe_unused]] bool _must_be_new = true)
         : rollback(false), inser_place(_inser_place)
     {
         rollback_at_construct_time = true;
-        bool present;
+        bool inserted;
 
-        std::tie(it, present) = inser_place.insert({virus_node.lock()->get_id(), virus_node});
-        if (!present && must_be_new)
+        std::tie(it, inserted) = inser_place.insert({virus_node.lock()->get_id(), virus_node});
+        if (!inserted && _must_be_new)
         {
             rollback_at_construct_time = false;
             throw VirusAlreadyCreated();
         }
+        else if (!inserted)
+            rollback_at_construct_time = false;
 
         rollback = true;
     }
@@ -240,16 +242,22 @@ bool VirusGenealogy<Virus>::exists(id_type const &id) const noexcept
 template <typename Virus>
 void VirusGenealogy<Virus>::create(id_type const &id, std::vector<id_type> const &parent_ids)
 {
+    if(parent_ids.size() == 0)
+        return;
+
+    if (nodes.find(id) != nodes.end())
+        throw VirusAlreadyCreated();
+
     std::shared_ptr<VirusNode> new_node = std::make_shared<VirusNode>(id);
 
-    std::vector<std::unique_ptr<InsertVirusGuard>> insertGuards;
+    std::vector<std::shared_ptr<InsertVirusGuard>> insertGuards;
 
     for (id_type parent_id : parent_ids)
     {
         std::shared_ptr<VirusNode> parent = find_node(parent_id)->second;
 
-        insertGuards.push_back(std::make_unique<InsertVirusGuard>(parent->get_children(), new_node));
-        insertGuards.push_back(std::make_unique<InsertVirusGuard>(new_node->get_parents(), parent));
+        insertGuards.push_back(std::make_shared<InsertVirusGuard>(parent->get_children(), new_node));
+        insertGuards.push_back(std::make_shared<InsertVirusGuard>(new_node->get_parents(), parent));
     }
 
     nodes.insert({id, new_node});
@@ -278,10 +286,10 @@ void VirusGenealogy<Virus>::remove(id_type const &id)
 
     std::vector<decltype(nodes.begin())> to_erase({remove_virus_it});
     std::set<id_type> to_erase_ids({id});
-    std::vector<std::unique_ptr<RemoveVirusGuard>> removeGuards;
+    std::vector<std::shared_ptr<RemoveVirusGuard>> removeGuards;
 
     for (auto &[parent_id, parent] : remove_virus_it->second->get_parents())
-        removeGuards.push_back(std::make_unique<RemoveVirusGuard>(parent.lock()->get_children(), id));
+        removeGuards.push_back(std::make_shared<RemoveVirusGuard>(parent.lock()->get_children(), id));
 
     // <parent_id, child_pointer>
     std::queue<std::pair<id_type, std::shared_ptr<VirusNode>>> bfs;
@@ -308,7 +316,7 @@ void VirusGenealogy<Virus>::remove(id_type const &id)
                 bfs.push({current->get_id(), child.lock()});
         }
         else
-            removeGuards.push_back(std::make_unique<RemoveVirusGuard>(current->get_parents(), parent_id));
+            removeGuards.push_back(std::make_shared<RemoveVirusGuard>(current->get_parents(), parent_id));
     }
 
     for (auto &g : removeGuards)
@@ -337,6 +345,9 @@ std::vector<typename VirusGenealogy<Virus>::id_type> VirusGenealogy<Virus>::get_
 template <typename Virus>
 void VirusGenealogy<Virus>::connect(id_type const &child_id, id_type const &parent_id)
 {
+    if (child_id == stem_id)
+        return;
+
     std::shared_ptr<VirusNode> child = find_node(child_id)->second;
     std::shared_ptr<VirusNode> parent = find_node(parent_id)->second;
 
@@ -409,14 +420,14 @@ private:
 
 template <typename Virus>
 VirusGenealogy<Virus>::children_iterator VirusGenealogy<Virus>::get_children_begin(id_type const &id) const {
-    auto it = find_node(id);
+    const auto it = find_node(id);
 
     return children_iterator(it->second->get_children().begin());
 }
 
 template <typename Virus>
 VirusGenealogy<Virus>::children_iterator VirusGenealogy<Virus>::get_children_end(id_type const &id) const {
-    auto it = find_node(id);
+    const auto it = find_node(id);
 
     return children_iterator(it->second->get_children().end());
 }
