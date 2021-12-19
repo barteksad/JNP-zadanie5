@@ -34,7 +34,7 @@ private:
     using virus_map_shared = std::map<id_type, std::shared_ptr<VirusNode>>;
     using virus_map_weak = std::map<id_type, std::weak_ptr<VirusNode>>;
 
-    virus_map_shared::iterator find_node(id_type const &id) {
+    typename virus_map_shared::iterator find_node(id_type const &id) {
         typename virus_map_shared::iterator it = nodes.find(id);
         if (it == nodes.end())
             throw VirusNotFound();
@@ -42,7 +42,7 @@ private:
             return it;
     }
 
-    virus_map_shared::const_iterator find_node(id_type const &id) const {
+    typename virus_map_shared::const_iterator find_node(id_type const &id) const {
         typename virus_map_shared::const_iterator it = nodes.find(id);
         if (it == nodes.end())
             throw VirusNotFound();
@@ -223,7 +223,7 @@ private:
     virus_map_weak parents;
     virus_map_weak children;
 public:
-    VirusNode(Virus::id_type new_virus_id) : virus(new_virus_id) {}
+    VirusNode(typename Virus::id_type new_virus_id) : virus(new_virus_id) {}
 
     virus_map_weak &get_parents() noexcept { return parents; }
 
@@ -241,7 +241,7 @@ private:
     bool rollback;
     bool rollback_at_construct_time;
     virus_map_weak &insert_place;
-    virus_map_weak::iterator it;
+    typename virus_map_weak::iterator it;
 
 public:
     InsertVirusGuard(virus_map_weak &_insert_place,
@@ -279,7 +279,7 @@ class VirusGenealogy<Virus>::RemoveVirusGuard {
 private:
     bool rollback;
     virus_map_weak &erase_place;
-    virus_map_weak::iterator it;
+    typename virus_map_weak::iterator it;
 
 public:
     RemoveVirusGuard(virus_map_weak &_erase_place, const id_type id)
