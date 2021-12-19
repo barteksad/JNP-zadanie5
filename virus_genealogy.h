@@ -2,34 +2,36 @@
 #define VIRUS_GENEALOGY_H
 
 #include <exception>
+#include <unordered_map>
 #include <map>
 #include <vector>
 #include <memory>
 #include <queue>
 #include <set>
 
-// USUNĄĆ PRZED ODDANIEM
+// TODO USUNĄĆ PRZED ODDANIEM
 #include <iostream>
+
 
 class VirusNotFound : public std::runtime_error
 {
 public:
     VirusNotFound()
-        : runtime_error("No Virus with such ID found!") {}
+        : runtime_error("VirusNotFound") {}
 };
 
 class VirusAlreadyCreated : public std::runtime_error
 {
 public:
     VirusAlreadyCreated()
-        : runtime_error("Virus with such ID already exists") {}
+        : runtime_error("VirusAlreadyCreated") {}
 };
 
 class TriedToRemoveStemVirus : public std::invalid_argument
 {
 public:
     TriedToRemoveStemVirus()
-        : invalid_argument("You cannot remove stem Virus") {}
+        : invalid_argument("TriedToRemoveStemVirus") {}
 };
 
 template <typename Virus>
@@ -55,13 +57,16 @@ public:
 
     VirusGenealogy(id_type const &_stem_id);
     VirusGenealogy(const VirusGenealogy &other) = delete;
-    VirusGenealogy &operator=(const VirusGenealogy &other) = delete;
-    id_type get_stem_id() const noexcept;
+
+    id_type get_stem_id() const;
     children_iterator get_children_begin(id_type const &id) const;
     children_iterator get_children_end(id_type const &id) const;
     std::vector<id_type> get_parents(id_type const &id) const;
-    bool exists(id_type const &id) const noexcept;
+
+    VirusGenealogy &operator=(const VirusGenealogy &other) = delete;
     const Virus &operator[](id_type const &id) const;
+
+    bool exists(id_type const &id) const;
     void create(id_type const &id, id_type const &parent_id);
     void create(id_type const &id, std::vector<id_type> const &parent_ids);
     void connect(id_type const &child_id, id_type const &parent_id);
@@ -84,39 +89,27 @@ public:
 
 template <typename Virus>
 VirusGenealogy<Virus>::VirusGenealogy(id_type const &_stem_id)
-    : stem_id(_stem_id), nodes({{_stem_id, std::make_shared<VirusNode>(_stem_id)}}) {}
+    : stem_id(_stem_id)
+    , nodes({{_stem_id, std::make_shared<VirusNode>(_stem_id)}})
+    {}
 
 template <typename Virus>
-class VirusGenealogy<Virus>::VirusNode
-{
-private:
-    Virus virus;
-    virus_map_weak parents;
-    virus_map_weak children;
+    class VirusGenealogy<Virus>::VirusNode{
+    private:
+        Virus virus;
+        virus_map_weak parents;
+        virus_map_weak children;
+    public:
+        VirusNode(Virus::id_type new_virus_id)
+            : virus(new_virus_id) {}
 
-public:
-    VirusNode(Virus::id_type new_virus_id)
-        : virus(new_virus_id) {}
+        virus_map_weak &get_parents() noexcept { return parents;}
 
-    virus_map_weak &get_parents() noexcept
-    {
-        return parents;
-    }
+        virus_map_weak &get_children() noexcept { return children;}
 
-    virus_map_weak &get_children() noexcept
-    {
-        return children;
-    }
+        Virus &get_virus() noexcept { return virus;}
 
-    Virus &get_virus() noexcept
-    {
-        return virus;
-    }
-
-    id_type get_id() const
-    {
-        return virus.get_id();
-    }
+        id_type get_id() const { return virus.get_id();}
 };
 
 template <typename Virus>
@@ -152,6 +145,9 @@ public:
         if (rollback && rollback_at_construct_time)
             inser_place.erase(it);
     }
+
+    InsertVirusGuard(InsertVirusGuard const &) = delete;
+    InsertVirusGuard & operator=(InsertVirusGuard const &) = delete;
 
     void dropRollback() noexcept
     {
@@ -215,28 +211,15 @@ const Virus &VirusGenealogy<Virus>::operator[](id_type const &id) const
 }
 
 template <typename Virus>
-VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const noexcept
+VirusGenealogy<Virus>::id_type VirusGenealogy<Virus>::get_stem_id() const
 {
     return stem_id;
 }
 
 template <typename Virus>
-bool VirusGenealogy<Virus>::exists(id_type const &id) const noexcept
+bool VirusGenealogy<Virus>::exists(id_type const &id) const
 {
-    bool found;
-    try
-    {
-        found = find_node(id) != nodes.end() ? true : false;
-    }
-    catch (...)
-    {
-        return false;
-    }
-
-    if (found)
-        return true;
-    else
-        return false;
+    return nodes.contains(id);
 }
 
 template <typename Virus>
@@ -249,10 +232,10 @@ void VirusGenealogy<Virus>::create(id_type const &id, std::vector<id_type> const
         throw VirusAlreadyCreated();
 
     std::shared_ptr<VirusNode> new_node = std::make_shared<VirusNode>(id);
-
     std::vector<std::shared_ptr<InsertVirusGuard>> insertGuards;
+    std::set<id_type> s (parent_ids.begin(), parent_ids.end());
 
-    for (id_type parent_id : parent_ids)
+    for (id_type parent_id : s)
     {
         std::shared_ptr<VirusNode> parent = find_node(parent_id)->second;
 
@@ -331,7 +314,6 @@ void VirusGenealogy<Virus>::remove(id_type const &id)
 template <typename Virus>
 std::vector<typename VirusGenealogy<Virus>::id_type> VirusGenealogy<Virus>::get_parents(id_type const &id) const
 {
-
     const auto it = find_node(id);
 
     std::vector<typename VirusGenealogy<Virus>::id_type> parents;
@@ -345,11 +327,11 @@ std::vector<typename VirusGenealogy<Virus>::id_type> VirusGenealogy<Virus>::get_
 template <typename Virus>
 void VirusGenealogy<Virus>::connect(id_type const &child_id, id_type const &parent_id)
 {
-    if (child_id == stem_id)
-        return;
-
     std::shared_ptr<VirusNode> child = find_node(child_id)->second;
     std::shared_ptr<VirusNode> parent = find_node(parent_id)->second;
+
+    if (child_id == stem_id)
+        return;
 
     std::unique_ptr<InsertVirusGuard> insertGuards1 = std::make_unique<InsertVirusGuard>(parent->get_children(), child, false);
     std::unique_ptr<InsertVirusGuard> insertGuards2 = std::make_unique<InsertVirusGuard>(child->get_parents(), parent, false);
@@ -369,16 +351,18 @@ public:
     using reference = const Virus &;
 
     children_iterator(pointer p) : ptr(p) {}
-
     children_iterator() = default;
+
+    children_iterator &operator=(const children_iterator &other) = default;
+    children_iterator &operator=(children_iterator &&other) noexcept = default;
 
     reference operator*() const
     {
         return ptr->second.lock()->get_virus();
     }
     pointer operator->() const
-    { 
-        return ptr;
+    {
+        return &(ptr->second.lock()->get_virus());
     }
     children_iterator &operator++()
     {
