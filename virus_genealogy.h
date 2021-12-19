@@ -343,15 +343,19 @@ void VirusGenealogy<Virus>::connect(id_type const &child_id, id_type const &pare
 template <typename Virus>
 class VirusGenealogy<Virus>::children_iterator
 {
+private:
+    typename virus_map_weak::const_iterator ptr;
 public:
     using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = const Virus;
-    using difference_type = VirusGenealogy<Virus>::virus_map_weak::difference_type;
-    using pointer = VirusGenealogy<Virus>::virus_map_weak::iterator;
+    using value_type = Virus;
+    using difference_type = ptrdiff_t;
+    using pointer = const value_type *;
     using reference = const Virus &;
 
-    children_iterator(pointer p) : ptr(p) {}
     children_iterator() = default;
+    children_iterator(const children_iterator &other) = default;
+    children_iterator(children_iterator &&other) noexcept = default;
+    children_iterator(decltype(ptr) &&iter) : ptr(iter) { };
 
     children_iterator &operator=(const children_iterator &other) = default;
     children_iterator &operator=(children_iterator &&other) noexcept = default;
@@ -398,8 +402,7 @@ public:
         return !(a == b);
     }
 
-private:
-    pointer ptr;
+
 };
 
 template <typename Virus>
